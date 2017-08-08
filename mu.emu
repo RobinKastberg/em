@@ -1,0 +1,155 @@
+import numpy
+import math
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+import time
+from mpl_toolkits.mplot3d import Axes3D
+
+permittivity = 8.854*10**(-12)
+permeability = 1.2566*10**(-6)
+# Number of cells
+
+ke = 20
+
+# Number of timesteps
+
+nsteps = 1000
+
+
+# Position of the source
+
+ks = 5
+
+# Cell size
+
+c0 = 1
+dx = 0.000000001
+dt = dx/(3*c0)
+
+cc = c0*dt/dx
+
+jz = numpy.zeros((ke,ke,ke))
+ex = numpy.zeros((ke,ke,ke))
+ey = numpy.zeros((ke,ke,ke))
+ez = numpy.zeros((ke,ke,ke))
+hx = numpy.zeros((ke,ke,ke))
+hy = numpy.zeros((ke,ke,ke))
+hz = numpy.zeros((ke,ke,ke))
+
+rho = 0.1
+rho2 = 0.1
+eps = 1
+mu = 1
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.set_xlim(0,10)
+ax.set_ylim(0,10)
+ax.set_zlim(0,10)
+
+Ca = (1 - rho*dt/(2*eps))/(1 + rho*dt/(2*eps))
+Cb = (dt/(eps*dx))/(1+rho*dt/(2*eps))
+Da = (1 - rho2*dt/(2*mu))/(1 + rho2*dt/(2*mu))
+Db = (dt/(mu*dx))/(1+rho2*dt/(2*mu))
+print(dt)
+print(dt/dx)
+print(dt/(mu*dx))
+print((dt/(mu*dx)))
+print("Ca: ",Ca)  
+print("Cb: ",Cb)  
+print("Da: ",Da)  
+print("Db: ",Db)  
+
+quiver = None
+def step(i):
+    global quiver
+    frameStart = time.time()
+    for x in range(0, ke):
+        for y in range(0,ke-1):
+            for z in range(0,ke-1):
+                hx[x][y][z] = Ca * hx[x][y][z] + Cb * (ey[x][y][z+1] - ey[x][y][z] - ez[x][y+1][z] + ez[x][y][z])
+            hx[x][y][ke-1] =  Ca * hx[x][y][ke-1] + Cb * (0 - ey[x][y][ke-1] - ez[x][y+1][ke-1] + ez[x][y][ke-1])
+        for z in range(0,ke-1):
+            hx[x][ke-1][z] = Ca * hx[x][ke-1][z] + Cb * (ey[x][ke-1][z+1] - ey[x][ke-1][z] - 0 + ez[x][ke-1][z])
+        hx[x][ke-1][ke-1] =  Ca * hx[x][ke-1][ke-1] + Cb * (0 - ey[x][ke-1][ke-1] - 0 + ez[x][ke-1][ke-1])
+    for y in range(0,ke):
+        for x in range(0, ke-1):
+            for z in range(0,ke-1):
+                hy[x][y][z] = Ca * hy[x][y][z] + Cb * (ez[x+1][y][z] - ez[x][y][z] - ex[x][y][z+1] + ex[x][y][z])
+            hy[x][y][ke-1] = Ca * hy[x][y][ke-1] + Cb * (ez[x+1][y][ke-1] - ez[x][y][ke-1] - 0 + ex[x][y][ke-1])
+        for z in range(0,ke-1):
+            hy[ke-1][y][z] = Ca * hy[ke-1][y][z] + Cb * (0 - ez[ke-1][y][z] - ex[ke-1][y][z+1] + ex[ke-1][y][z])
+        hy[ke-1][y][ke-1] = Ca * hy[ke-1][y][ke-1] + Cb * (0 - ez[x][y][ke-1] - 0 + ex[x][y][ke-1])
+
+    for z in range(0,ke):
+        for x in range(0, ke-1):
+            for y in range(0,ke-1):
+                hz[x][y][z] = Ca * hz[x][y][z] + Cb * (ex[x][y+1][z] - ex[x][y][z] - ey[x+1][y][z] + ey[x][y][z])
+            hz[x][ke-1][z] = Ca * hz[x][ke-1][z] + Cb * (0 - ex[x][ke-1][z] - ey[x+1][ke-1][z] + ey[x][ke-1][z])
+        for y in range(0,ke-1):
+            hz[ke-1][y][z] = Ca * hz[ke-1][y][z] + Cb * (ex[ke-1][y+1][z] - ex[ke-1][y][z] - 0 + ey[ke-1][y][z])
+        hz[ke-1][ke-1][z] = Ca * hz[ke-1][ke-1][z] + Cb * (0 - ex[ke-1][y][z] - 0 + ey[ke-1][y][z])
+
+    for z in range(1,ke-1): 
+        if i == 0:
+            jz[ks][ks][z] = 5
+        else:
+            jz[ks][ks][z] = 0
+
+    for x in range(0, ke):
+        for y in range(1,ke):
+            for z in range(1, ke):
+                ex[x][y][z] = Da * ex[x][y][z] + Db * (hz[x][y][z] - hz[x][y-1][z] - hy[x][y][z] + hy[x][y][z-1])
+            ex[x][y][0] = Da * ex[x][y][0] + Db * (hz[x][y][0] - hz[x][y-1][0] - hy[x][y][0] + 0)
+        for z in range(1,ke):
+            ex[x][0][z] = Da * ex[x][0][z] + Db * (hz[x][0][z] - 0 - hy[x][0][z] + hy[x][0][z-1])
+        ex[x][0][0] = Da * ex[x][0][0] + Db * (hz[x][0][0] - 0 - hy[x][0][0] + 0)
+
+    for y in range(0,ke):
+        for x in range(1, ke):
+            for z in range(1, ke):
+                ey[x][y][z] = Da * ey[x][y][z] + Db * (hx[x][y][z] - hx[x][y][z-1] - hz[x][y][z] + hz[x-1][y][z])
+            ey[x][y][0] = Da * ey[x][y][0] + Db * (hx[x][y][0] - 0 - hz[x][y][0] + hz[x-1][y][0])
+        for z in range(1, ke):
+            ey[0][y][z] = Da * ey[0][y][z] + Db * (hx[0][y][z] - hx[0][y][z-1] - hz[0][y][z] + 0)
+        ey[0][y][0] = Da * ey[0][y][0] + Db * (hx[0][y][0] - 0 - hz[0][y][0] + 0)
+
+
+    for z in range(0, ke):
+        for x in range(1, ke):
+            for y in range(1,ke):
+                ez[x][y][z] = Da * ez[x][y][z] + Db * (hy[x][y][z] - hy[x-1][y][z] - hx[x][y][z] + hx[x][y-1][z]) - jz[x][y][z]
+            ez[x][0][z] = Da * ez[x][0][z] + Db * (hy[x][0][z] - hy[x-1][0][z] - hx[x][0][z] + 0) - jz[x][0][z]
+        for y in range(1,ke):
+            ez[0][y][z] = Da * ez[0][y][z] + Db * (hy[0][y][z] - 0 - hx[0][y][z] + hx[0][y-1][z]) - jz[0][y][z]
+        ez[0][0][z] = Da * ez[0][0][z] + Db * (hy[0][0][z] - 0 - hx[0][0][z] + 0) - jz[0][0][z]
+
+
+    X = []
+    Y = []
+    Z = []
+    U = []
+    V = []
+    W = []
+    for x in range(0, ke):
+        for y in range(0,ke):
+            for z in range(0, ke):
+                X.append(x)
+                Y.append(y)
+                Z.append(z)
+                U.append(hx[x][y][z])
+                V.append(hy[x][y][z])
+                W.append(hz[x][y][z])
+    if quiver:
+        ax.collections.remove(quiver)
+    quiver = ax.quiver(X,Y,Z,U,V,W)
+    print(time.time() - frameStart)
+
+writer = animation.writers['ffmpeg'](fps=10)
+with writer.saving(fig, "writer_test.mp4", 100):
+    for i in range(100):
+        step(i)
+        writer.grab_frame()
+
